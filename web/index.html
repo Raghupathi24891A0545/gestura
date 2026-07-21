@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Gesture Desktop Controller</title>
+    <meta name="description" content="Control your desktop with hand gestures — AI-powered gesture recognition for volume, brightness, media, screenshots, and more.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+
+    <!-- MediaPipe Tasks Vision -->
+    <script type="importmap">
+    {
+        "imports": {
+            "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/vision_bundle.mjs"
+        }
+    }
+    </script>
+</head>
+<body>
+    <div class="app-bg"></div>
+
+    <div class="dashboard-container">
+
+        <!-- ═══════════════════ HEADER ═══════════════════ -->
+        <header class="glass-header">
+            <div class="header-left">
+                <div class="header-logo">🎮</div>
+                <div>
+                    <h1>AI Gesture Desktop Controller</h1>
+                    <p class="header-subtitle">Hand tracking powered by MediaPipe</p>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn-icon" id="pip-btn" title="Run in Background (PiP)">🔲</button>
+                <span class="header-clock" id="header-clock">00:00</span>
+                <div class="status-badge" id="ai-status">Initializing...</div>
+                <button class="btn-icon" id="settings-btn" title="Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- ═══════════════════ MAIN DASHBOARD ═══════════════════ -->
+        <main class="dashboard-grid">
+
+            <!-- ──── LEFT: Camera + Analytics ──── -->
+            <section class="col-camera">
+                <!-- Webcam Feed -->
+                <div class="glass-card webcam-wrapper" id="webcam-card">
+                    <video id="webcam" autoplay playsinline muted></video>
+                    <canvas id="output_canvas" class="output-canvas"></canvas>
+                    <div id="gesture-badge" class="gesture-badge hidden">Idle</div>
+                </div>
+
+                <!-- Analytics Grid -->
+                <div class="glass-card analytics-card">
+                    <h2 class="card-title">📊 AI Analytics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-icon">⚡</span>
+                            <div class="stat-info">
+                                <span class="stat-label">FPS</span>
+                                <span class="stat-value" id="fps-val">0</span>
+                            </div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-icon">✋</span>
+                            <div class="stat-info">
+                                <span class="stat-label">Hand Status</span>
+                                <span class="stat-value" id="hand-val">No Hand</span>
+                            </div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-icon">🤌</span>
+                            <div class="stat-info">
+                                <span class="stat-label">Gesture</span>
+                                <span class="stat-value" id="gesture-val">Idle</span>
+                            </div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-icon">🎯</span>
+                            <div class="stat-info">
+                                <span class="stat-label">Confidence</span>
+                                <span class="stat-value" id="confidence-val">0%</span>
+                            </div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-icon">📶</span>
+                            <div class="stat-info">
+                                <span class="stat-label">Stability</span>
+                                <span class="stat-value" id="stability-val">—</span>
+                            </div>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-icon">🖐️</span>
+                            <div class="stat-info">
+                                <span class="stat-label">Hands</span>
+                                <span class="stat-value" id="hand-count-val">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ──── CENTER: Meters + Action ──── -->
+            <section class="col-meters">
+
+                <!-- Volume Meter -->
+                <div class="glass-card meter-card">
+                    <h2 class="card-title">🔊 Volume</h2>
+                    <div class="circular-meter">
+                        <svg viewBox="0 0 120 120">
+                            <circle class="meter-bg" cx="60" cy="60" r="54"></circle>
+                            <circle class="meter-fill meter-fill--blue" id="volume-arc" cx="60" cy="60" r="54"></circle>
+                        </svg>
+                        <div class="meter-text">
+                            <span class="meter-percent" id="volume-percent">50%</span>
+                            <span class="meter-label" id="volume-label">VOLUME</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Brightness Meter -->
+                <div class="glass-card meter-card">
+                    <h2 class="card-title">💡 Brightness</h2>
+                    <div class="circular-meter">
+                        <svg viewBox="0 0 120 120">
+                            <circle class="meter-bg" cx="60" cy="60" r="54"></circle>
+                            <circle class="meter-fill meter-fill--yellow" id="brightness-arc" cx="60" cy="60" r="54"></circle>
+                        </svg>
+                        <div class="meter-text">
+                            <span class="meter-percent" id="brightness-percent">50%</span>
+                            <span class="meter-label">BRIGHTNESS</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Action -->
+                <div class="glass-card action-card">
+                    <h2 class="card-title">🎬 Current Action</h2>
+                    <div class="action-display">
+                        <span class="action-icon" id="action-icon">—</span>
+                        <span class="action-label" id="action-label">Idle</span>
+                    </div>
+                    <div class="confidence-bar">
+                        <div class="confidence-bar-fill" id="confidence-bar-fill"></div>
+                    </div>
+                    <span class="action-detail" id="action-detail"></span>
+                </div>
+
+                <!-- System Stats -->
+                <div class="glass-card sys-card">
+                    <h2 class="card-title">🖥️ System</h2>
+                    <div class="sys-row">
+                        <span class="sys-label">CPU</span>
+                        <div class="sys-bar"><div class="sys-bar-fill sys-bar-fill--cpu" id="cpu-bar-fill"></div></div>
+                        <span class="sys-val" id="cpu-val">0%</span>
+                    </div>
+                    <div class="sys-row">
+                        <span class="sys-label">RAM</span>
+                        <div class="sys-bar"><div class="sys-bar-fill sys-bar-fill--ram" id="ram-bar-fill"></div></div>
+                        <span class="sys-val" id="ram-val">0%</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ──── RIGHT: Wave + History + Gestures ──── -->
+            <section class="col-right">
+
+                <!-- Wave Animation -->
+                <div class="glass-card wave-card">
+                    <h2 class="card-title">〰️ Sound Waves</h2>
+                    <canvas id="wave-canvas"></canvas>
+                </div>
+
+                <!-- Volume History -->
+                <div class="glass-card history-card">
+                    <h2 class="card-title">📈 Volume History (60s)</h2>
+                    <canvas id="history-canvas"></canvas>
+                </div>
+
+                <!-- Gesture Reference -->
+                <div class="glass-card ref-card">
+                    <h2 class="card-title">📖 Gesture Guide</h2>
+                    <div class="ref-grid">
+                        <div class="ref-item"><span class="ref-icon">✌️</span><span>Volume</span></div>
+                        <div class="ref-item"><span class="ref-icon">👍</span><span>Bright +</span></div>
+                        <div class="ref-item"><span class="ref-icon">👎</span><span>Bright −</span></div>
+                        <div class="ref-item"><span class="ref-icon">☝️</span><span>Mouse</span></div>
+                        <div class="ref-item"><span class="ref-icon">👌</span><span>Screenshot</span></div>
+                        <div class="ref-item"><span class="ref-icon">🖐️</span><span>Play/Pause</span></div>
+                        <div class="ref-item"><span class="ref-icon">✊</span><span>Lock (3s)</span></div>
+                        <div class="ref-item"><span class="ref-icon">🤲</span><span>Sleep (3s)</span></div>
+                        <div class="ref-item"><span class="ref-icon">🤘</span><span>Shutdown (5s)</span></div>
+                        <div class="ref-item"><span class="ref-icon">🤙</span><span>Chrome</span></div>
+                        <div class="ref-item"><span class="ref-icon">✌️</span><span>VS Code</span></div>
+                        <div class="ref-item"><span class="ref-icon">📞</span><span>Website</span></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ═══════════════════ COUNTDOWN OVERLAY ═══════════════════ -->
+    <div id="countdown-overlay" class="countdown-overlay">
+        <div class="countdown-content">
+            <div class="countdown-ring-wrapper">
+                <svg class="countdown-ring" viewBox="0 0 120 120">
+                    <circle class="countdown-ring-bg" cx="60" cy="60" r="54"/>
+                    <circle class="countdown-ring-fill" id="countdown-ring-fill" cx="60" cy="60" r="54"/>
+                </svg>
+                <span class="countdown-number" id="countdown-number">3</span>
+            </div>
+            <p class="countdown-title" id="countdown-title">Locking in...</p>
+            <p class="countdown-hint">Release gesture to cancel</p>
+        </div>
+    </div>
+
+    <!-- ═══════════════════ TOAST CONTAINER ═══════════════════ -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- ═══════════════════ SETTINGS MODAL ═══════════════════ -->
+    <div id="settings-modal" class="settings-modal">
+        <div class="settings-panel">
+            <div class="settings-header">
+                <h2>⚙️ Settings</h2>
+                <button class="btn-icon" id="settings-close">✕</button>
+            </div>
+
+            <div class="settings-body">
+
+                <!-- Appearance -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">🎨 Appearance</h3>
+                    <div class="setting-row">
+                        <label for="setting-theme">Theme</label>
+                        <select id="setting-theme">
+                            <option value="dark">Dark</option>
+                            <option value="light">Light</option>
+                        </select>
+                    </div>
+                    <div class="setting-row">
+                        <label>Animation Speed</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-animation-speed" min="0.5" max="2" step="0.1" value="1.0">
+                            <span id="animation-speed-display">1.0x</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Voice Feedback</label>
+                        <label class="toggle">
+                            <input type="checkbox" id="setting-voice" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Detection -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">🎯 Detection</h3>
+                    <div class="setting-row">
+                        <label>Confidence Threshold</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-confidence" min="0.3" max="0.95" step="0.05" value="0.7">
+                            <span id="confidence-display">70%</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Volume Speed</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-volume-speed" min="0.3" max="3.0" step="0.1" value="1.0">
+                            <span id="volume-speed-display">1.0x</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Brightness Step</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-brightness-step" min="1" max="20" step="1" value="5">
+                            <span id="brightness-step-display">5</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Mouse Smoothing</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-mouse-smoothing" min="0.1" max="0.9" step="0.05" value="0.3">
+                            <span id="mouse-smoothing-display">30%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hold Durations -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">⏱️ Hold Durations</h3>
+                    <div class="setting-row">
+                        <label>Lock (Fist)</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-lock-hold" min="1" max="10" step="0.5" value="3.0">
+                            <span id="lock-hold-display">3.0s</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Sleep (Two Palms)</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-sleep-hold" min="1" max="10" step="0.5" value="3.0">
+                            <span id="sleep-hold-display">3.0s</span>
+                        </div>
+                    </div>
+                    <div class="setting-row">
+                        <label>Shutdown (Two Fists)</label>
+                        <div class="slider-row">
+                            <input type="range" id="setting-shutdown-hold" min="3" max="15" step="0.5" value="5.0">
+                            <span id="shutdown-hold-display">5.0s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enable/Disable Gestures -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">🤚 Gesture Controls</h3>
+                    <div class="gesture-toggles">
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-volume" checked><span>✌️ Volume</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-brightness" checked><span>💡 Brightness</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-mouse" checked><span>🖱️ Mouse</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-screenshot" checked><span>📸 Screenshot</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-lock" checked><span>🔒 Lock</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-sleep" checked><span>😴 Sleep</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-shutdown" checked><span>📴 Shutdown</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-media" checked><span>🎵 Media</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-apps" checked><span>📂 Apps</span></label>
+                        <label class="gesture-toggle"><input type="checkbox" id="gesture-website" checked><span>🌐 Website</span></label>
+                    </div>
+                </div>
+
+                <!-- Paths -->
+                <div class="settings-group">
+                    <h3 class="settings-group-title">📁 Paths & URLs</h3>
+                    <div class="setting-row">
+                        <label for="setting-favourite-url">Favourite URL</label>
+                        <input type="url" id="setting-favourite-url" class="text-input" value="https://www.google.com" placeholder="https://...">
+                    </div>
+                    <div class="setting-row">
+                        <label for="setting-screenshot-folder">Screenshot Folder</label>
+                        <input type="text" id="setting-screenshot-folder" class="text-input" placeholder="Leave empty for default">
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-footer">
+                <button class="btn btn--ghost" id="settings-reset">Reset Defaults</button>
+                <button class="btn btn--primary" id="settings-save">💾 Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Logic -->
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>
