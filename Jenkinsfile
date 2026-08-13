@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    environment {
+        PYTHON = 'C:\\Users\\janar\\AppData\\Local\\Python\\bin\\python.exe'
+    }
+
     stages {
 
         stage('Checkout') {
@@ -11,24 +15,23 @@ pipeline {
 
         stage('Setup Python') {
             steps {
-                bat 'python --version'
-                bat 'python -m pip --version'
+                bat '"%PYTHON%" --version'
+                bat '"%PYTHON%" -m pip --version'
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                bat 'python -m pip install -r requirements.txt'
+                bat '"%PYTHON%" -m pip install -r requirements.txt'
             }
         }
 
         stage('Validate Project') {
             steps {
-                bat 'python -m py_compile server.py'
-                bat 'python -m py_compile desktop_app.py'
+                bat '"%PYTHON%" -m py_compile server.py'
+                bat '"%PYTHON%" -m py_compile desktop_app.py'
             }
         }
-
     }
 
     post {
